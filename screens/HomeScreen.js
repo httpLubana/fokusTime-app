@@ -7,15 +7,17 @@ import {
   AppState,
   Modal,
   Pressable,
-  Alert
+  Alert,
+  TouchableOpacity
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
+import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function HomeScreen() {
-  const [dailyGoal, setDailyGoal] = useState(60); // dakika hedef
-  const [selectedTime, setSelectedTime] = useState(1500);
+  const [selectedTime, setSelectedTime] = useState(1500); // default 25 dk
   const [timeLeft, setTimeLeft] = useState(1500);
   const [isRunning, setIsRunning] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Ders");
@@ -26,32 +28,16 @@ export default function HomeScreen() {
 
   const appState = useRef(AppState.currentState);
 
-  // ---- DAILY GOAL STORAGE ----
-  const saveGoal = async (value) => {
-    try {
-      await AsyncStorage.setItem("dailyGoal", value.toString());
-    } catch (e) {
-      console.log("Goal save error:", e);
-    }
-  };
+  const MIN_TIME = 60;     // min 1 dk
+  const MAX_TIME = 7200;   // max 120 dk
 
-  const loadGoal = async () => {
-    const g = await AsyncStorage.getItem("dailyGoal");
-    if (g) setDailyGoal(parseInt(g));
-  };
-
-  useEffect(() => {
-    loadGoal();
-  }, []);
-
-  // ---- FORMAT TIME ----
   const formatTime = (sec) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
-  // ---- TIMER LOOP ----
+  // ---------------- TIMER ----------------
   useEffect(() => {
     let interval = null;
 
@@ -67,7 +53,7 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [isRunning, timeLeft]);
 
-  // ---- SAVE SESSION ----
+  // ---------------- SAVE SESSION ----------------
   const saveSession = async () => {
     const session = {
       duration: selectedTime - timeLeft,
@@ -89,19 +75,17 @@ export default function HomeScreen() {
     }
   };
 
-  // ---- APPSTATE / DISTRACTION ----
+  // ---------------- APP STATE CHECK ----------------
   useEffect(() => {
     const listener = AppState.addEventListener("change", (next) => {
       const prev = appState.current;
       appState.current = next;
 
-      // Uygulamadan çıkarsa → distraction
       if (prev === "active" && next === "background" && isRunning) {
         setDistractions((d) => d + 1);
         setIsRunning(false);
       }
 
-      // Geri döndüğünde sor
       if (prev !== "active" && next === "active" && !isRunning && timeLeft > 0) {
         setTimeout(() => {
           Alert.alert(
@@ -119,56 +103,60 @@ export default function HomeScreen() {
     return () => listener.remove();
   }, [isRunning, timeLeft]);
 
-  // ------------------- UI -------------------
+  // ---------------- TIME ADJUST (+ / -) ----------------
+  const increaseTime = () => {
+    if (selectedTime < MAX_TIME) {
+      const newTime = selectedTime + 60;
+      setSelectedTime(newTime);
+      setTimeLeft(newTime);
+    }
+  };
+
+  const decreaseTime = () => {
+    if (selectedTime > MIN_TIME) {
+      const newTime = selectedTime - 60;
+      setSelectedTime(newTime);
+      setTimeLeft(newTime);
+    }
+  };
+
   return (
     <View style={styles.container}>
+      <StatusBar hidden={true} />
 
-      {/* DAILY GOAL PICKER */}
-      <Text style={styles.goalLabel}>Günlük Hedef:</Text>
-      
-      <Picker
-        selectedValue={dailyGoal}
-        style={styles.picker}
-        onValueChange={(val) => {
-          setDailyGoal(val);
-          saveGoal(val);
-        }}
-      >
-        <Picker.Item label="30 dakika" value={30} />
-        <Picker.Item label="60 dakika" value={60} />
-        <Picker.Item label="90 dakika" value={90} />
-        <Picker.Item label="120 dakika" value={120} />
-      </Picker>
+      {/* ------- ÜST KART ------- */}
+      <View style={styles.topCard}>
 
-      {/* TIME PICKER */}
-      <Picker
-        selectedValue={selectedTime}
-        style={styles.picker}
-        onValueChange={(val) => {
-          setSelectedTime(val);
-          setTimeLeft(val);
-        }}
-      >
-        <Picker.Item label="5 dakika" value={300} />
-        <Picker.Item label="10 dakika" value={600} />
-        <Picker.Item label="15 dakika" value={900} />
-        <Picker.Item label="25 dakika" value={1500} />
-        <Picker.Item label="30 dakika" value={1800} />
-      </Picker>
+        {/* ----- SÜRE AYARLAMA ----- */}
+        <Text style={styles.topLabel}>Süre</Text>
 
-      {/* CATEGORY PICKER */}
-      <Picker
-        selectedValue={selectedCategory}
-        style={styles.picker}
-        onValueChange={(val) => setSelectedCategory(val)}
-      >
-        <Picker.Item label="Ders" value="Ders" />
-        <Picker.Item label="Kodlama" value="Kodlama" />
-        <Picker.Item label="Proje" value="Proje" />
-        <Picker.Item label="Kitap" value="Kitap" />
-      </Picker>
+        <View style={styles.adjustRow}>
+          <TouchableOpacity style={styles.adjustBtn} onPress={decreaseTime}>
+            <Text style={styles.adjustText}>-</Text>
+          </TouchableOpacity>
 
-      {/* CIRCULAR TIMER */}
+          <Text style={styles.timeDisplay}>{formatTime(selectedTime)}</Text>
+
+          <TouchableOpacity style={styles.adjustBtn} onPress={increaseTime}>
+            <Text style={styles.adjustText}>+</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ----- KATEGORİ (picker aynen duruyor) ----- */}
+        <Text style={styles.topLabel}>Kategori</Text>
+        <Picker
+          selectedValue={selectedCategory}
+          style={styles.topPicker}
+          onValueChange={(val) => setSelectedCategory(val)}
+        >
+          <Picker.Item label="Ders" value="Ders" />
+          <Picker.Item label="Kodlama" value="Kodlama" />
+          <Picker.Item label="Proje" value="Proje" />
+          <Picker.Item label="Kitap" value="Kitap" />
+        </Picker>
+      </View>
+
+      {/* ------- TIMER CIRCLE ------- */}
       <AnimatedCircularProgress
         size={260}
         width={12}
@@ -180,37 +168,60 @@ export default function HomeScreen() {
       >
         {() => <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>}
       </AnimatedCircularProgress>
+{/* ------- ICON BUTTONS ------- */}
+<View style={styles.iconButtons}>
 
-      {/* BUTTONS */}
-      <View style={styles.buttons}>
-        <Button title="Start" onPress={() => setIsRunning(true)} />
+  {/* RESET */}
+  <Pressable
+    style={styles.iconBtn}
+    onPress={() => {
+      setIsRunning(false);
+      setTimeLeft(selectedTime);
+      setDistractions(0);
+    }}
+  >
+    <Ionicons name="refresh" size={32} color="#c92f68" />
+  </Pressable>
 
-        <Button
-          title="Pause"
-          onPress={() => {
-            if (isRunning) {
-              setIsRunning(false);
-              saveSession();
-            }
-          }}
-        />
+  {/* START / PAUSE */}
+  {!isRunning ? (
+    <Pressable
+      style={styles.iconBtnCenter}
+      onPress={() => setIsRunning(true)}
+    >
+      <Ionicons name="play" size={38} color="#c92f68" />
+    </Pressable>
+  ) : (
+    <Pressable
+      style={styles.iconBtnCenter}
+      onPress={() => {
+        setIsRunning(false);
+        saveSession();
+      }}
+    >
+      <Ionicons name="pause" size={38} color="#c92f68" />
+    </Pressable>
+  )}
 
-        <Button
-          title="Reset"
-          onPress={() => {
-            setIsRunning(false);
-            setTimeLeft(selectedTime);
-            setDistractions(0);
-          }}
-        />
-      </View>
+  {/* STOP (optional değil reset gibi) */}
+  <Pressable
+    style={styles.iconBtn}
+    onPress={() => {
+      setIsRunning(false);
+      saveSession();
+    }}
+  >
+    <Ionicons name="stop" size={32} color="#c92f68" />
+  </Pressable>
 
-      {/* INFO */}
+</View>
+
+      {/* ------- INFO ------- */}
       <Text style={styles.info}>Süre: {formatTime(selectedTime)}</Text>
       <Text style={styles.info}>Kategori: {selectedCategory}</Text>
       <Text style={styles.info}>Dikkat Dağınıklığı: {distractions}</Text>
 
-      {/* SUMMARY MODAL */}
+      {/* ------- SUMMARY MODAL ------- */}
       <Modal visible={showSummary} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalBox}>
@@ -245,58 +256,111 @@ export default function HomeScreen() {
             >
               <Text style={styles.closeButtonText}>Tamam</Text>
             </Pressable>
+
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
 
-// ------------------- STYLES -------------------
+/* ---------- STYLES ---------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     backgroundColor: "#fff",
+    paddingTop: 30,
   },
-  goalLabel: {
-    fontSize: 18,
+
+  topCard: {
+    width: "90%",
+    backgroundColor: "#fff",
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    borderRadius: 16,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  topLabel: {
+    fontSize: 16,
     fontWeight: "700",
     color: "#c92f68",
-    marginBottom: 5,
-    marginTop: 10,
+    marginBottom: 4,
+    marginTop: 8,
   },
-  picker: {
-    width: 200,
-    height: 50,
+
+  adjustRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  adjustBtn: {
+    width: 55,
+    height: 55,
+    backgroundColor: "#ffe6f0",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  adjustText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#c92f68",
+  },
+
+  timeDisplay: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#c92f68",
+  },
+
+  topPicker: {
+    width: "100%",
+    height: 55,
+    backgroundColor: "#ffe6f0",
+    borderRadius: 10,
     marginBottom: 10,
+    paddingVertical: 6,
+    paddingLeft: 10,
   },
+
   timeText: {
     fontSize: 52,
     fontWeight: "bold",
     color: "#c92f68",
+    marginTop: 10,
   },
+
   buttons: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 25,
-    flexWrap: "wrap",
-    justifyContent: "center",
+    marginTop: 20,
   },
+
   info: {
     marginTop: 10,
     fontSize: 17,
     fontWeight: "600",
     color: "#c92f68",
   },
+
   modalContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
+
   modalBox: {
     width: "80%",
     backgroundColor: "#fff",
@@ -304,17 +368,20 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: "center",
   },
+
   modalTitle: {
     fontSize: 24,
     fontWeight: "700",
     marginBottom: 15,
     color: "#c92f68",
   },
+
   modalText: {
     fontSize: 18,
     marginVertical: 5,
     color: "#8d4f63",
   },
+
   closeButton: {
     marginTop: 20,
     backgroundColor: "#c92f68",
@@ -322,13 +389,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     borderRadius: 10,
   },
+
   closeButtonText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
   },
+
   bold: {
     fontWeight: "700",
     color: "#c92f68",
   },
+  iconButtons: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 25,
+  marginTop: 25,
+},
+
+iconBtn: {
+  width: 60,
+  height: 60,
+  borderRadius: 40,
+  backgroundColor: "#ffe6f0",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+iconBtnCenter: {
+  width: 80,
+  height: 80,
+  borderRadius: 50,
+  backgroundColor: "#ffd1e0",
+  alignItems: "center",
+  justifyContent: "center",
+  borderWidth: 3,
+  borderColor: "#c92f68",
+},
+
 });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Button, Alert } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BarChart, PieChart } from "react-native-chart-kit";
+import * as Animatable from "react-native-animatable";
 
 export default function ReportScreen() {
   const [sessions, setSessions] = useState([]);
@@ -20,7 +21,6 @@ export default function ReportScreen() {
     }
   };
 
-  // ------------------ CLEAR ALL DATA ------------------
   const clearAll = () => {
     Alert.alert(
       "Delete All Sessions",
@@ -39,7 +39,7 @@ export default function ReportScreen() {
     );
   };
 
-  // ------------------ STATISTICS ------------------
+  // ---------------- STATISTICS ----------------
   const today = new Date().toLocaleDateString("tr-TR");
 
   const todaySessions = sessions.filter(
@@ -50,74 +50,95 @@ export default function ReportScreen() {
   const totalAll = sessions.reduce((sum, s) => sum + s.duration, 0);
   const totalDistractions = sessions.reduce((sum, s) => sum + s.distractions, 0);
 
-  const last7 = sessions.slice(-7);
+  // ---------------- LAST 7 DAYS (DOĞRU YÖNTEM) ----------------
+  const getLast7Days = () => {
+    const result = [];
 
-  // ------------------ DAILY GOAL TRACKER ------------------
-  const DAILY_GOAL = 3600; // 60 dakika = 3600 saniye
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
 
-  const goalPercent = Math.min((totalToday / DAILY_GOAL) * 100, 100);
+      const label = d.toLocaleDateString("tr-TR", { day: "2-digit" });
 
-  // ------------------ HEATMAP ------------------
-  const heatmapDays = 7;
-  const heatmapData = [];
+      const filtered = sessions.filter(
+        (s) =>
+          new Date(s.date).toLocaleDateString("tr-TR") ===
+          d.toLocaleDateString("tr-TR")
+      );
 
-  for (let i = 0; i < heatmapDays; i++) {
+      const totalSeconds = filtered.reduce((sum, s) => sum + s.duration, 0);
+
+      result.push({
+        label,
+        minutes: Number((totalSeconds / 60).toFixed(1)),
+      });
+    }
+
+    return result;
+  };
+
+  const last7Days = getLast7Days();
+
+  // ---------------- HEATMAP ----------------
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const heatmapGrid = Array(7).fill(null).map(() => []);
+
+  for (let i = 0; i < 28; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
 
-    const formatted = d.toLocaleDateString("tr-TR");
-
     const daySessions = sessions.filter(
-      (s) => new Date(s.date).toLocaleDateString("tr-TR") === formatted
+      (s) =>
+        new Date(s.date).toLocaleDateString("tr-TR") ===
+        d.toLocaleDateString("tr-TR")
     );
 
     const total = daySessions.reduce((sum, s) => sum + s.duration, 0);
 
-    heatmapData.unshift({
+    const weekday = d.getDay(); // 0 = Sunday
+    const rowIndex = weekday === 0 ? 6 : weekday - 1;
+
+    heatmapGrid[rowIndex].unshift({
       label: d.getDate(),
       total,
     });
   }
 
+  // ---- COLOR SCALE ----
   const heatColor = (sec) => {
-    if (sec === 0) return "#fce1e8";
-    if (sec < 900) return "#ffbbc6";
-    if (sec < 1800) return "#ff8cab";
-    if (sec < 3600) return "#ff5f8a";
-    return "#d22b4f";
+    if (sec === 0) return "#ffe4e8";
+    if (sec < 900) return "#ffb3c6";
+    if (sec < 1800) return "#ff7a9c";
+    if (sec < 3600) return "#ff4d7a";
+    return "#d12356";
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <ScrollView style={styles.container}>
-
-        {/* TITLE */}
         <Text style={styles.title}>Focus Report</Text>
 
-        {/* CLEAR BUTTON */}
         <View style={styles.clearBtn}>
           <Button title="Clear All Sessions" color="#d6336c" onPress={clearAll} />
         </View>
 
-        {/* WHEN EMPTY */}
         {sessions.length === 0 && (
           <Text style={styles.noData}>No saved sessions yet.</Text>
         )}
 
-        {/* MAIN CONTENT */}
         {sessions.length > 0 && (
           <>
-            {/* -------- STATS -------- */}
+            {/* ------------ STATS ------------- */}
             <View style={styles.statsBox}>
               <Text style={styles.statsTitle}>Statistics</Text>
 
               <Text style={styles.statsText}>
-                <Text style={styles.bold}>Today Total Focus:</Text>{" "}
+                <Text style={styles.bold}>Today:</Text>{" "}
                 {Math.floor(totalToday / 60)} min {totalToday % 60} sec
               </Text>
 
               <Text style={styles.statsText}>
-                <Text style={styles.bold}>All Time Focus:</Text>{" "}
+                <Text style={styles.bold}>All Time:</Text>{" "}
                 {Math.floor(totalAll / 60)} min {totalAll % 60} sec
               </Text>
 
@@ -127,69 +148,80 @@ export default function ReportScreen() {
               </Text>
             </View>
 
-            {/* -------- DAILY GOAL -------- */}
-            <Text style={styles.subtitle}>Daily Goal</Text>
+            {/* ---- HEATMAP ---- */}
+            <Text style={styles.subtitle}>Last 4 Weeks Activity</Text>
 
-            <View style={styles.goalBox}>
-              <Text style={styles.goalText}>
-                {Math.floor(totalToday / 60)} / {Math.floor(DAILY_GOAL / 60)} min
-              </Text>
+            <View style={styles.heatmapRowWrapper}>
+              <View style={styles.dayColumn}>
+                {DAYS.map((day, i) => (
+                  <Text key={i} style={styles.dayLabel}>
+                    {day}
+                  </Text>
+                ))}
+              </View>
 
-              <View style={styles.goalBarBackground}>
-                <View
-                  style={[
-                    styles.goalBarFill,
-                    { width: `${goalPercent}%` },
-                  ]}
-                />
+              <View>
+                {heatmapGrid.map((row, rowIndex) => (
+                  <View key={rowIndex} style={styles.heatmapRow}>
+                    {row.map((cell, colIndex) => (
+                      <Animatable.View
+                        key={colIndex}
+                        animation="zoomIn"
+                        delay={colIndex * 50}
+                        style={[
+                          styles.githubCell,
+                          { backgroundColor: heatColor(cell.total) },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                ))}
               </View>
             </View>
 
-            {/* -------- HEATMAP -------- */}
-            <Text style={styles.subtitle}>Weekly Activity</Text>
-
-            <View style={styles.heatmapRow}>
-              {heatmapData.map((d, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.heatCell,
-                    { backgroundColor: heatColor(d.total) },
-                  ]}
-                >
-                  <Text style={styles.heatLabel}>{d.label}</Text>
-                </View>
-              ))}
+            {/* ---- LEGEND ---- */}
+            <View style={styles.legendWrapper}>
+              <Text style={styles.legendText}>Less</Text>
+              <View style={styles.legendBox} />
+              <View style={[styles.legendBox, { backgroundColor: "#ffb3c6" }]} />
+              <View style={[styles.legendBox, { backgroundColor: "#ff7a9c" }]} />
+              <View style={[styles.legendBox, { backgroundColor: "#ff4d7a" }]} />
+              <View style={[styles.legendBox, { backgroundColor: "#d12356" }]} />
+              <Text style={styles.legendText}>More</Text>
             </View>
 
-            {/* -------- BAR CHART -------- */}
-            <Text style={styles.subtitle}>Last 7 Days</Text>
+            {/* ------------ BAR CHART ------------- */}
+           <Text style={styles.subtitle}>Last 7 Days</Text>
 
-            <BarChart
-              data={{
-                labels: last7.map((s) =>
-                  new Date(s.date).toLocaleDateString("tr-TR", { day: "2-digit" })
-                ),
-                datasets: [
-                  {
-                    data: last7.map((s) => Number((s.duration / 60).toFixed(1))),
-                  },
-                ],
-              }}
-              width={340}
-              height={220}
-              chartConfig={{
-                backgroundColor: "#ffe4e9",
-                backgroundGradientFrom: "#ffe4e9",
-                backgroundGradientTo: "#ffe4e9",
-                color: () => "#d6336c",
-                labelColor: () => "#d6336c",
-                decimalPlaces: 1,
-              }}
-              style={styles.chart}
-            />
+<BarChart
+  data={{
+    labels: last7Days.map((d) => d.label),
+    datasets: [{ data: last7Days.map((d) => d.minutes) }],
+  }}
+  width={340}
+  height={220}
+  yAxisSuffix="m"
+  fromZero={true} 
+  yAxisInterval={1}  
+  chartConfig={{
+    backgroundColor: "#ffe4e9",
+    backgroundGradientFrom: "#ffe4e9",
+    backgroundGradientTo: "#ffe4e9",
+    decimalPlaces: 1,
+    barPercentage: 0.5,
+    color: () => "#d6336c",
+    labelColor: () => "#d6336c",
 
-            {/* -------- PIE CHART -------- */}
+    formatYLabel: (value) => {
+      // Değer çok küçükse 0 göster
+      if (parseFloat(value) < 0.5) return "0";
+      return value;
+    },
+  }}
+  style={styles.chart}
+/>
+
+            {/* ------------ PIE CHART ------------- */}
             <Text style={styles.subtitle}>Category Distribution</Text>
 
             <PieChart
@@ -225,7 +257,7 @@ export default function ReportScreen() {
           </>
         )}
 
-        {/* -------- ALL SESSIONS LIST -------- */}
+        {/* ------------ ALL SESSIONS LIST ------------- */}
         <Text style={styles.subtitle}>All Sessions</Text>
 
         {sessions.map((s, i) => (
@@ -246,7 +278,6 @@ export default function ReportScreen() {
             </Text>
           </View>
         ))}
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -255,7 +286,6 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#ffffff",
   },
   title: {
     fontSize: 28,
@@ -285,14 +315,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginVertical: 10,
   },
-  // ---- Stats ----
   statsBox: {
     backgroundColor: "#ffe4e9",
     padding: 15,
     borderRadius: 12,
     marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "#ffb6c1",
   },
   statsTitle: {
     fontSize: 20,
@@ -305,58 +332,40 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     color: "#8d4f63",
   },
-  // ---- Goal Tracker ----
-  goalBox: {
-    backgroundColor: "#ffe4ef",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  goalText: {
-    fontSize: 16,
-    color: "#c2557c",
-    marginBottom: 8,
-    fontWeight: "700",
-  },
-  goalBarBackground: {
-    width: "100%",
-    height: 14,
-    backgroundColor: "#ffd6e3",
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  goalBarFill: {
-    height: "100%",
-    backgroundColor: "#d6336c",
-  },
 
-  // ---- Heatmap ----
+  // ---- HEATMAP ----
+  heatmapRowWrapper: {
+    flexDirection: "row",
+    marginBottom: 15,
+  },
+  dayColumn: {
+    marginRight: 6,
+    justifyContent: "space-between",
+    paddingVertical: 2,
+  },
+  dayLabel: {
+    fontSize: 11,
+    color: "#944059",
+    fontWeight: "600",
+    height: 16,
+  },
   heatmapRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 2,
   },
-  heatCell: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heatLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#8d4f63",
+  githubCell: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    marginRight: 2,
   },
 
-  // ---- Cards ----
+  // ---- CARD ----
   card: {
     backgroundColor: "#ffe4e9",
     padding: 15,
     borderRadius: 12,
     marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "#ffb6c1",
   },
   cardText: {
     fontSize: 16,
@@ -366,5 +375,28 @@ const styles = StyleSheet.create({
   bold: {
     fontWeight: "700",
     color: "#c2557c",
+  },
+
+  // ---- LEGEND ----
+  legendWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 18,
+    gap: 4,
+  },
+
+  legendText: {
+    fontSize: 12,
+    color: "#944059",
+    fontWeight: "600",
+    marginHorizontal: 4,
+  },
+
+  legendBox: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: "#ffe4e8",
   },
 });
