@@ -20,6 +20,7 @@ export default function ReportScreen() {
     }
   };
 
+  // ------------------ CLEAR ALL DATA ------------------
   const clearAll = () => {
     Alert.alert(
       "Delete All Sessions",
@@ -38,19 +39,53 @@ export default function ReportScreen() {
     );
   };
 
-  // ----------- STATISTICS -----------
+  // ------------------ STATISTICS ------------------
   const today = new Date().toLocaleDateString("tr-TR");
 
   const todaySessions = sessions.filter(
     (s) => new Date(s.date).toLocaleDateString("tr-TR") === today
   );
 
-  const totalToday = todaySessions.reduce((a, b) => a + b.duration, 0);
-  const totalAll = sessions.reduce((a, b) => a + b.duration, 0);
-  const totalDistractions = sessions.reduce((a, b) => a + b.distractions, 0);
+  const totalToday = todaySessions.reduce((sum, s) => sum + s.duration, 0);
+  const totalAll = sessions.reduce((sum, s) => sum + s.duration, 0);
+  const totalDistractions = sessions.reduce((sum, s) => sum + s.distractions, 0);
 
   const last7 = sessions.slice(-7);
-  const categories = ["Ders", "Kodlama", "Proje", "Kitap"];
+
+  // ------------------ DAILY GOAL TRACKER ------------------
+  const DAILY_GOAL = 3600; // 60 dakika = 3600 saniye
+
+  const goalPercent = Math.min((totalToday / DAILY_GOAL) * 100, 100);
+
+  // ------------------ HEATMAP ------------------
+  const heatmapDays = 7;
+  const heatmapData = [];
+
+  for (let i = 0; i < heatmapDays; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+
+    const formatted = d.toLocaleDateString("tr-TR");
+
+    const daySessions = sessions.filter(
+      (s) => new Date(s.date).toLocaleDateString("tr-TR") === formatted
+    );
+
+    const total = daySessions.reduce((sum, s) => sum + s.duration, 0);
+
+    heatmapData.unshift({
+      label: d.getDate(),
+      total,
+    });
+  }
+
+  const heatColor = (sec) => {
+    if (sec === 0) return "#fce1e8";
+    if (sec < 900) return "#ffbbc6";
+    if (sec < 1800) return "#ff8cab";
+    if (sec < 3600) return "#ff5f8a";
+    return "#d22b4f";
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -69,20 +104,21 @@ export default function ReportScreen() {
           <Text style={styles.noData}>No saved sessions yet.</Text>
         )}
 
-        {/* STATS */}
+        {/* MAIN CONTENT */}
         {sessions.length > 0 && (
           <>
+            {/* -------- STATS -------- */}
             <View style={styles.statsBox}>
               <Text style={styles.statsTitle}>Statistics</Text>
 
               <Text style={styles.statsText}>
                 <Text style={styles.bold}>Today Total Focus:</Text>{" "}
-                {Math.floor(totalToday / 60)} min
+                {Math.floor(totalToday / 60)} min {totalToday % 60} sec
               </Text>
 
               <Text style={styles.statsText}>
                 <Text style={styles.bold}>All Time Focus:</Text>{" "}
-                {Math.floor(totalAll / 60)} min
+                {Math.floor(totalAll / 60)} min {totalAll % 60} sec
               </Text>
 
               <Text style={styles.statsText}>
@@ -91,7 +127,42 @@ export default function ReportScreen() {
               </Text>
             </View>
 
-            {/* LAST 7 DAYS */}
+            {/* -------- DAILY GOAL -------- */}
+            <Text style={styles.subtitle}>Daily Goal</Text>
+
+            <View style={styles.goalBox}>
+              <Text style={styles.goalText}>
+                {Math.floor(totalToday / 60)} / {Math.floor(DAILY_GOAL / 60)} min
+              </Text>
+
+              <View style={styles.goalBarBackground}>
+                <View
+                  style={[
+                    styles.goalBarFill,
+                    { width: `${goalPercent}%` },
+                  ]}
+                />
+              </View>
+            </View>
+
+            {/* -------- HEATMAP -------- */}
+            <Text style={styles.subtitle}>Weekly Activity</Text>
+
+            <View style={styles.heatmapRow}>
+              {heatmapData.map((d, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.heatCell,
+                    { backgroundColor: heatColor(d.total) },
+                  ]}
+                >
+                  <Text style={styles.heatLabel}>{d.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* -------- BAR CHART -------- */}
             <Text style={styles.subtitle}>Last 7 Days</Text>
 
             <BarChart
@@ -101,9 +172,7 @@ export default function ReportScreen() {
                 ),
                 datasets: [
                   {
-                    data: last7.map((s) =>
-                      Number((s.duration / 60).toFixed(1))
-                    ),
+                    data: last7.map((s) => Number((s.duration / 60).toFixed(1))),
                   },
                 ],
               }}
@@ -120,44 +189,43 @@ export default function ReportScreen() {
               style={styles.chart}
             />
 
-            {/* PIE CHART */}
+            {/* -------- PIE CHART -------- */}
             <Text style={styles.subtitle}>Category Distribution</Text>
 
-          <PieChart
-  data={[
-    {
-      name: "Ders",
-      population: sessions.filter((s) => s.category === "Ders").length,
-      color: "#d22b4fff",
-    },
-    {
-      name: "Kodlama",
-      population: sessions.filter((s) => s.category === "Kodlama").length,
-      color: "#ff718bff",
-    },
-    {
-      name: "Proje",
-      population: sessions.filter((s) => s.category === "Proje").length,
-      color: "#ffbbc6ff",
-    },
-    {
-      name: "Kitap",
-      population: sessions.filter((s) => s.category === "Kitap").length,
-      color: "#fce1e8ff",
-    },
-  ]}
-  width={340}
-  height={220}
-  accessor="population"
-  backgroundColor="transparent"
-  paddingLeft="20"
-  chartConfig={{ color: () => "#d6336c" }}
-/>
-
+            <PieChart
+              data={[
+                {
+                  name: "Ders",
+                  population: sessions.filter((s) => s.category === "Ders").length,
+                  color: "#d22b4f",
+                },
+                {
+                  name: "Kodlama",
+                  population: sessions.filter((s) => s.category === "Kodlama").length,
+                  color: "#ff718b",
+                },
+                {
+                  name: "Proje",
+                  population: sessions.filter((s) => s.category === "Proje").length,
+                  color: "#ffbbc6",
+                },
+                {
+                  name: "Kitap",
+                  population: sessions.filter((s) => s.category === "Kitap").length,
+                  color: "#fce1e8",
+                },
+              ]}
+              width={340}
+              height={220}
+              accessor="population"
+              backgroundColor="transparent"
+              paddingLeft="20"
+              chartConfig={{ color: () => "#d6336c" }}
+            />
           </>
         )}
 
-        {/* ALL SESSIONS */}
+        {/* -------- ALL SESSIONS LIST -------- */}
         <Text style={styles.subtitle}>All Sessions</Text>
 
         {sessions.map((s, i) => (
@@ -217,6 +285,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginVertical: 10,
   },
+  // ---- Stats ----
   statsBox: {
     backgroundColor: "#ffe4e9",
     padding: 15,
@@ -236,6 +305,51 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     color: "#8d4f63",
   },
+  // ---- Goal Tracker ----
+  goalBox: {
+    backgroundColor: "#ffe4ef",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  goalText: {
+    fontSize: 16,
+    color: "#c2557c",
+    marginBottom: 8,
+    fontWeight: "700",
+  },
+  goalBarBackground: {
+    width: "100%",
+    height: 14,
+    backgroundColor: "#ffd6e3",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  goalBarFill: {
+    height: "100%",
+    backgroundColor: "#d6336c",
+  },
+
+  // ---- Heatmap ----
+  heatmapRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  heatCell: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heatLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#8d4f63",
+  },
+
+  // ---- Cards ----
   card: {
     backgroundColor: "#ffe4e9",
     padding: 15,

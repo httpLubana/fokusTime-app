@@ -14,6 +14,7 @@ import { Picker } from "@react-native-picker/picker";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
 
 export default function HomeScreen() {
+  const [dailyGoal, setDailyGoal] = useState(60); // dakika hedef
   const [selectedTime, setSelectedTime] = useState(1500);
   const [timeLeft, setTimeLeft] = useState(1500);
   const [isRunning, setIsRunning] = useState(false);
@@ -25,14 +26,32 @@ export default function HomeScreen() {
 
   const appState = useRef(AppState.currentState);
 
-  // ---------- FORMAT TIME ----------
+  // ---- DAILY GOAL STORAGE ----
+  const saveGoal = async (value) => {
+    try {
+      await AsyncStorage.setItem("dailyGoal", value.toString());
+    } catch (e) {
+      console.log("Goal save error:", e);
+    }
+  };
+
+  const loadGoal = async () => {
+    const g = await AsyncStorage.getItem("dailyGoal");
+    if (g) setDailyGoal(parseInt(g));
+  };
+
+  useEffect(() => {
+    loadGoal();
+  }, []);
+
+  // ---- FORMAT TIME ----
   const formatTime = (sec) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
-  // ---------- TIMER LOOP ----------
+  // ---- TIMER LOOP ----
   useEffect(() => {
     let interval = null;
 
@@ -48,7 +67,7 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [isRunning, timeLeft]);
 
-  // ---------- SAVE SESSION ----------
+  // ---- SAVE SESSION ----
   const saveSession = async () => {
     const session = {
       duration: selectedTime - timeLeft,
@@ -61,30 +80,28 @@ export default function HomeScreen() {
     setShowSummary(true);
 
     try {
-      const oldData = await AsyncStorage.getItem("sessions");
-      const arr = oldData ? JSON.parse(oldData) : [];
-
+      const old = await AsyncStorage.getItem("sessions");
+      const arr = old ? JSON.parse(old) : [];
       arr.push(session);
-
       await AsyncStorage.setItem("sessions", JSON.stringify(arr));
     } catch (e) {
       console.log("Save error:", e);
     }
   };
 
-  // ---------- DISTRACTION + APPSTATE CONTROL ----------
+  // ---- APPSTATE / DISTRACTION ----
   useEffect(() => {
     const listener = AppState.addEventListener("change", (next) => {
       const prev = appState.current;
       appState.current = next;
 
-      // Kullanıcı uygulamadan ayrıldı → distraction + pause
+      // Uygulamadan çıkarsa → distraction
       if (prev === "active" && next === "background" && isRunning) {
         setDistractions((d) => d + 1);
         setIsRunning(false);
       }
 
-      // Kullanıcı geri döndü → Devam etmek ister misiniz?
+      // Geri döndüğünde sor
       if (prev !== "active" && next === "active" && !isRunning && timeLeft > 0) {
         setTimeout(() => {
           Alert.alert(
@@ -102,9 +119,26 @@ export default function HomeScreen() {
     return () => listener.remove();
   }, [isRunning, timeLeft]);
 
-  // ---------- RETURN UI ----------
+  // ------------------- UI -------------------
   return (
     <View style={styles.container}>
+
+      {/* DAILY GOAL PICKER */}
+      <Text style={styles.goalLabel}>Günlük Hedef:</Text>
+      
+      <Picker
+        selectedValue={dailyGoal}
+        style={styles.picker}
+        onValueChange={(val) => {
+          setDailyGoal(val);
+          saveGoal(val);
+        }}
+      >
+        <Picker.Item label="30 dakika" value={30} />
+        <Picker.Item label="60 dakika" value={60} />
+        <Picker.Item label="90 dakika" value={90} />
+        <Picker.Item label="120 dakika" value={120} />
+      </Picker>
 
       {/* TIME PICKER */}
       <Picker
@@ -169,7 +203,6 @@ export default function HomeScreen() {
             setDistractions(0);
           }}
         />
-
       </View>
 
       {/* INFO */}
@@ -220,13 +253,20 @@ export default function HomeScreen() {
   );
 }
 
-// ---------- STYLES ----------
+// ------------------- STYLES -------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#fff",
+  },
+  goalLabel: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#c92f68",
+    marginBottom: 5,
+    marginTop: 10,
   },
   picker: {
     width: 200,
@@ -251,7 +291,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#c92f68",
   },
-
   modalContainer: {
     flex: 1,
     justifyContent: "center",
