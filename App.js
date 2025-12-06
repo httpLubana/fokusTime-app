@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import HomeScreen from "./screens/HomeScreen";
 import ReportScreen from "./screens/ReportScreen";
+import AllSessionsScreen from "./screens/AllSessionsScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -13,15 +14,12 @@ export default function App() {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-
           tabBarIcon: ({ color, size }) => {
             let icon;
 
-            if (route.name === "Home") {
-              icon = "timer-outline";
-            } else if (route.name === "Reports") {
-              icon = "stats-chart-outline";
-            }
+            if (route.name === "Home") icon = "timer-outline";
+            else if (route.name === "Reports") icon = "stats-chart-outline";
+            else if (route.name === "AllSessions") icon = "list-outline";
 
             return <Ionicons name={icon} size={size} color={color} />;
           },
@@ -32,6 +30,7 @@ export default function App() {
       >
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Reports" component={ReportScreen} />
+        <Tab.Screen name="AllSessions" component={AllSessionsScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );

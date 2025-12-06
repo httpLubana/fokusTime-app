@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Button,
   AppState,
   Modal,
   Pressable,
@@ -17,7 +16,7 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function HomeScreen() {
-  const [selectedTime, setSelectedTime] = useState(1500); // default 25 dk
+  const [selectedTime, setSelectedTime] = useState(1500);
   const [timeLeft, setTimeLeft] = useState(1500);
   const [isRunning, setIsRunning] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("Ders");
@@ -26,10 +25,13 @@ export default function HomeScreen() {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
 
+  // **SEANS BAŞLADI MI?**
+  const [wasRunning, setWasRunning] = useState(false);
+
   const appState = useRef(AppState.currentState);
 
-  const MIN_TIME = 60;     // min 1 dk
-  const MAX_TIME = 7200;   // max 120 dk
+  const MIN_TIME = 60;
+  const MAX_TIME = 7200;
 
   const formatTime = (sec) => {
     const m = Math.floor(sec / 60);
@@ -37,7 +39,7 @@ export default function HomeScreen() {
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
-  // ---------------- TIMER ----------------
+  // ---------------- TIMER LOOP ----------------
   useEffect(() => {
     let interval = null;
 
@@ -47,6 +49,7 @@ export default function HomeScreen() {
 
     if (timeLeft === 0 && isRunning) {
       setIsRunning(false);
+      setWasRunning(false);
       saveSession();
     }
 
@@ -58,7 +61,7 @@ export default function HomeScreen() {
     const session = {
       duration: selectedTime - timeLeft,
       category: selectedCategory,
-      distractions: distractions,
+      distractions,
       date: new Date().toISOString(),
     };
 
@@ -75,18 +78,26 @@ export default function HomeScreen() {
     }
   };
 
-  // ---------------- APP STATE CHECK ----------------
+  // ---------------- APP STATE LISTENER ----------------
   useEffect(() => {
     const listener = AppState.addEventListener("change", (next) => {
       const prev = appState.current;
       appState.current = next;
 
+      // Arka plana gidince → dikkat dağınıklığı
       if (prev === "active" && next === "background" && isRunning) {
         setDistractions((d) => d + 1);
         setIsRunning(false);
       }
 
-      if (prev !== "active" && next === "active" && !isRunning && timeLeft > 0) {
+      // Uygulamaya dönünce alert → sadece seans BAŞLAMIŞSA
+      if (
+        wasRunning &&
+        prev !== "active" &&
+        next === "active" &&
+        !isRunning &&
+        timeLeft > 0
+      ) {
         setTimeout(() => {
           Alert.alert(
             "Devam Et?",
@@ -101,9 +112,9 @@ export default function HomeScreen() {
     });
 
     return () => listener.remove();
-  }, [isRunning, timeLeft]);
+  }, [isRunning, timeLeft, wasRunning]);
 
-  // ---------------- TIME ADJUST (+ / -) ----------------
+  // ---------------- TIME + / - ----------------
   const increaseTime = () => {
     if (selectedTime < MAX_TIME) {
       const newTime = selectedTime + 60;
@@ -120,14 +131,13 @@ export default function HomeScreen() {
     }
   };
 
+  // ---------------- UI ----------------
   return (
     <View style={styles.container}>
-      <StatusBar hidden={true} />
+      <StatusBar hidden />
 
       {/* ------- ÜST KART ------- */}
       <View style={styles.topCard}>
-
-        {/* ----- SÜRE AYARLAMA ----- */}
         <Text style={styles.topLabel}>Süre</Text>
 
         <View style={styles.adjustRow}>
@@ -142,7 +152,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ----- KATEGORİ (picker aynen duruyor) ----- */}
         <Text style={styles.topLabel}>Kategori</Text>
         <Picker
           selectedValue={selectedCategory}
@@ -168,56 +177,61 @@ export default function HomeScreen() {
       >
         {() => <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>}
       </AnimatedCircularProgress>
-{/* ------- ICON BUTTONS ------- */}
-<View style={styles.iconButtons}>
 
-  {/* RESET */}
-  <Pressable
-    style={styles.iconBtn}
-    onPress={() => {
-      setIsRunning(false);
-      setTimeLeft(selectedTime);
-      setDistractions(0);
-    }}
-  >
-    <Ionicons name="refresh" size={32} color="#c92f68" />
-  </Pressable>
+      {/* ------- BUTONLAR ------- */}
+      <View style={styles.iconButtons}>
 
-  {/* START / PAUSE */}
-  {!isRunning ? (
-    <Pressable
-      style={styles.iconBtnCenter}
-      onPress={() => setIsRunning(true)}
-    >
-      <Ionicons name="play" size={38} color="#c92f68" />
-    </Pressable>
-  ) : (
-    <Pressable
-      style={styles.iconBtnCenter}
-      onPress={() => {
-        setIsRunning(false);
-        saveSession();
-      }}
-    >
-      <Ionicons name="pause" size={38} color="#c92f68" />
-    </Pressable>
-  )}
+        {/* RESET */}
+        <Pressable
+          style={styles.iconBtn}
+          onPress={() => {
+            setIsRunning(false);
+            setWasRunning(false);
+            setTimeLeft(selectedTime);
+            setDistractions(0);
+          }}
+        >
+          <Ionicons name="refresh" size={32} color="#c92f68" />
+        </Pressable>
 
-  {/* STOP (optional değil reset gibi) */}
-  <Pressable
-    style={styles.iconBtn}
-    onPress={() => {
-      setIsRunning(false);
-      saveSession();
-    }}
-  >
-    <Ionicons name="stop" size={32} color="#c92f68" />
-  </Pressable>
+        {/* START */}
+        {!isRunning ? (
+          <Pressable
+            style={styles.iconBtnCenter}
+            onPress={() => {
+              setIsRunning(true);
+              setWasRunning(true);
+            }}
+          >
+            <Ionicons name="play" size={38} color="#c92f68" />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.iconBtnCenter}
+            onPress={() => {
+              setIsRunning(false);
+              saveSession();
+              setWasRunning(false);
+            }}
+          >
+            <Ionicons name="pause" size={38} color="#c92f68" />
+          </Pressable>
+        )}
 
-</View>
+        {/* STOP */}
+        <Pressable
+          style={styles.iconBtn}
+          onPress={() => {
+            setIsRunning(false);
+            setWasRunning(false);
+            saveSession();
+          }}
+        >
+          <Ionicons name="stop" size={32} color="#c92f68" />
+        </Pressable>
 
-      {/* ------- INFO ------- */}
-      <Text style={styles.info}>Süre: {formatTime(selectedTime)}</Text>
+      </View>
+
       <Text style={styles.info}>Kategori: {selectedCategory}</Text>
       <Text style={styles.info}>Dikkat Dağınıklığı: {distractions}</Text>
 
@@ -256,7 +270,6 @@ export default function HomeScreen() {
             >
               <Text style={styles.closeButtonText}>Tamam</Text>
             </Pressable>
-
           </View>
         </View>
       </Modal>
@@ -268,24 +281,22 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "flex-start",
-    alignItems: "center",
     backgroundColor: "#fff",
     paddingTop: 30,
+    alignItems: "center",
   },
 
   topCard: {
     width: "90%",
     backgroundColor: "#fff",
-    paddingVertical: 15,
-    paddingHorizontal: 15,
+    padding: 15,
     borderRadius: 16,
-    marginBottom: 10,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 6,
     elevation: 3,
+    marginBottom: 10,
   },
 
   topLabel: {
@@ -300,7 +311,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
   },
 
   adjustBtn: {
@@ -308,8 +318,8 @@ const styles = StyleSheet.create({
     height: 55,
     backgroundColor: "#ffe6f0",
     borderRadius: 12,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
 
   adjustText: {
@@ -329,9 +339,7 @@ const styles = StyleSheet.create({
     height: 55,
     backgroundColor: "#ffe6f0",
     borderRadius: 10,
-    marginBottom: 10,
-    paddingVertical: 6,
-    paddingLeft: 10,
+    marginTop: 8,
   },
 
   timeText: {
@@ -341,10 +349,31 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  buttons: {
+  iconButtons: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 20,
+    alignItems: "center",
+    gap: 25,
+    marginTop: 25,
+  },
+
+  iconBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 40,
+    backgroundColor: "#ffe6f0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  iconBtnCenter: {
+    width: 80,
+    height: 80,
+    borderRadius: 50,
+    backgroundColor: "#ffd1e0",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#c92f68",
   },
 
   info: {
@@ -400,32 +429,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#c92f68",
   },
-  iconButtons: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 25,
-  marginTop: 25,
-},
-
-iconBtn: {
-  width: 60,
-  height: 60,
-  borderRadius: 40,
-  backgroundColor: "#ffe6f0",
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-iconBtnCenter: {
-  width: 80,
-  height: 80,
-  borderRadius: 50,
-  backgroundColor: "#ffd1e0",
-  alignItems: "center",
-  justifyContent: "center",
-  borderWidth: 3,
-  borderColor: "#c92f68",
-},
-
 });

@@ -4,8 +4,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BarChart, PieChart } from "react-native-chart-kit";
 import * as Animatable from "react-native-animatable";
+import { useNavigation } from "@react-navigation/native";
 
 export default function ReportScreen() {
+  const navigation = useNavigation();
   const [sessions, setSessions] = useState([]);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function ReportScreen() {
   const totalAll = sessions.reduce((sum, s) => sum + s.duration, 0);
   const totalDistractions = sessions.reduce((sum, s) => sum + s.distractions, 0);
 
-  // ---------------- LAST 7 DAYS (DOĞRU YÖNTEM) ----------------
+  // ---------------- LAST 7 DAYS ----------------
   const getLast7Days = () => {
     const result = [];
 
@@ -81,7 +83,9 @@ export default function ReportScreen() {
 
   // ---------------- HEATMAP ----------------
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const heatmapGrid = Array(7).fill(null).map(() => []);
+  const heatmapGrid = Array(7)
+    .fill(null)
+    .map(() => []);
 
   for (let i = 0; i < 28; i++) {
     const d = new Date();
@@ -94,8 +98,7 @@ export default function ReportScreen() {
     );
 
     const total = daySessions.reduce((sum, s) => sum + s.duration, 0);
-
-    const weekday = d.getDay(); // 0 = Sunday
+    const weekday = d.getDay();
     const rowIndex = weekday === 0 ? 6 : weekday - 1;
 
     heatmapGrid[rowIndex].unshift({
@@ -104,7 +107,6 @@ export default function ReportScreen() {
     });
   }
 
-  // ---- COLOR SCALE ----
   const heatColor = (sec) => {
     if (sec === 0) return "#ffe4e8";
     if (sec < 900) return "#ffb3c6";
@@ -115,7 +117,11 @@ export default function ReportScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <ScrollView style={styles.container}>
+     <ScrollView
+  style={styles.container}
+  contentContainerStyle={{ paddingBottom: 120 }}
+>
+
         <Text style={styles.title}>Focus Report</Text>
 
         <View style={styles.clearBtn}>
@@ -191,35 +197,40 @@ export default function ReportScreen() {
             </View>
 
             {/* ------------ BAR CHART ------------- */}
-           <Text style={styles.subtitle}>Last 7 Days</Text>
+            <Text style={styles.subtitle}>Last 7 Days</Text>
 
-<BarChart
-  data={{
-    labels: last7Days.map((d) => d.label),
-    datasets: [{ data: last7Days.map((d) => d.minutes) }],
-  }}
-  width={340}
-  height={220}
-  yAxisSuffix="m"
-  fromZero={true} 
-  yAxisInterval={1}  
-  chartConfig={{
-    backgroundColor: "#ffe4e9",
-    backgroundGradientFrom: "#ffe4e9",
-    backgroundGradientTo: "#ffe4e9",
-    decimalPlaces: 1,
-    barPercentage: 0.5,
-    color: () => "#d6336c",
-    labelColor: () => "#d6336c",
-
-    formatYLabel: (value) => {
-      // Değer çok küçükse 0 göster
-      if (parseFloat(value) < 0.5) return "0";
-      return value;
-    },
-  }}
-  style={styles.chart}
-/>
+            <View style={styles.barCard}>
+              <BarChart
+                data={{
+                  labels: last7Days.map((d) => d.label),
+                  datasets: [{ data: last7Days.map((d) => d.minutes) }],
+                }}
+                width={300}
+                height={220}
+                fromZero={true}
+                yAxisSuffix="m"
+                chartConfig={{
+                  backgroundColor: "#ffffff",
+                  backgroundGradientFrom: "#ffffff",
+                  backgroundGradientTo: "#ffffff",
+                  decimalPlaces: 0,
+                  color: (opacity = 1) =>
+                    `rgba(214, 51, 108, ${opacity * 0.8})`,
+                  labelColor: () => "#b34466",
+                  propsForBackgroundLines: {
+                    stroke: "#f2d3dd",
+                    strokeWidth: 1,
+                    strokeDasharray: "4 6",
+                  },
+                  barPercentage: 0.45,
+                }}
+                style={{
+                  marginVertical: 10,
+                  borderRadius: 16,
+                  paddingTop: 20,
+                }}
+              />
+            </View>
 
             {/* ------------ PIE CHART ------------- */}
             <Text style={styles.subtitle}>Category Distribution</Text>
@@ -254,39 +265,24 @@ export default function ReportScreen() {
               paddingLeft="20"
               chartConfig={{ color: () => "#d6336c" }}
             />
+
+            {/* ---- BUTTON to ALL SESSIONS ---- */}
+            <View style={{ marginTop: 30 }}>
+              <Button
+                title="View All Sessions"
+                color="#d6336c"
+                onPress={() => navigation.navigate("AllSessions")}
+              />
+            </View>
           </>
         )}
-
-        {/* ------------ ALL SESSIONS LIST ------------- */}
-        <Text style={styles.subtitle}>All Sessions</Text>
-
-        {sessions.map((s, i) => (
-          <View key={i} style={styles.card}>
-            <Text style={styles.cardText}>
-              <Text style={styles.bold}>Category:</Text> {s.category}
-            </Text>
-            <Text style={styles.cardText}>
-              <Text style={styles.bold}>Worked:</Text>{" "}
-              {Math.floor(s.duration / 60)} min {s.duration % 60} sec
-            </Text>
-            <Text style={styles.cardText}>
-              <Text style={styles.bold}>Distractions:</Text> {s.distractions}
-            </Text>
-            <Text style={styles.cardText}>
-              <Text style={styles.bold}>Date:</Text>{" "}
-              {new Date(s.date).toLocaleString()}
-            </Text>
-          </View>
-        ))}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
+  container: { padding: 20 },
   title: {
     fontSize: 28,
     fontWeight: "700",
@@ -294,9 +290,7 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     color: "#d6336c",
   },
-  clearBtn: {
-    marginBottom: 25,
-  },
+  clearBtn: { marginBottom: 25 },
   subtitle: {
     fontSize: 20,
     fontWeight: "700",
@@ -311,10 +305,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#d6336c",
   },
-  chart: {
-    borderRadius: 12,
-    marginVertical: 10,
-  },
   statsBox: {
     backgroundColor: "#ffe4e9",
     padding: 15,
@@ -327,57 +317,16 @@ const styles = StyleSheet.create({
     color: "#c2557c",
     marginBottom: 10,
   },
-  statsText: {
-    fontSize: 16,
-    marginVertical: 4,
-    color: "#8d4f63",
-  },
+  statsText: { fontSize: 16, marginVertical: 4, color: "#8d4f63" },
 
-  // ---- HEATMAP ----
-  heatmapRowWrapper: {
-    flexDirection: "row",
-    marginBottom: 15,
-  },
-  dayColumn: {
-    marginRight: 6,
-    justifyContent: "space-between",
-    paddingVertical: 2,
-  },
-  dayLabel: {
-    fontSize: 11,
-    color: "#944059",
-    fontWeight: "600",
-    height: 16,
-  },
-  heatmapRow: {
-    flexDirection: "row",
-    marginBottom: 2,
-  },
-  githubCell: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-    marginRight: 2,
-  },
+  // HEATMAP
+  heatmapRowWrapper: { flexDirection: "row", marginBottom: 15 },
+  dayColumn: { marginRight: 6, justifyContent: "space-between", paddingVertical: 2 },
+  dayLabel: { fontSize: 11, color: "#944059", fontWeight: "600", height: 16 },
+  heatmapRow: { flexDirection: "row", marginBottom: 2 },
+  githubCell: { width: 14, height: 14, borderRadius: 3, marginRight: 2 },
 
-  // ---- CARD ----
-  card: {
-    backgroundColor: "#ffe4e9",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 15,
-  },
-  cardText: {
-    fontSize: 16,
-    marginVertical: 4,
-    color: "#8d4f63",
-  },
-  bold: {
-    fontWeight: "700",
-    color: "#c2557c",
-  },
-
-  // ---- LEGEND ----
+  // PIE / BAR
   legendWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -385,18 +334,19 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     gap: 4,
   },
-
-  legendText: {
-    fontSize: 12,
-    color: "#944059",
-    fontWeight: "600",
-    marginHorizontal: 4,
-  },
-
-  legendBox: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-    backgroundColor: "#ffe4e8",
+  legendText: { fontSize: 12, color: "#944059", fontWeight: "600", marginHorizontal: 4 },
+  legendBox: { width: 14, height: 14, borderRadius: 3, backgroundColor: "#ffe4e8" },
+  barCard: {
+    backgroundColor: "#fff7fa",
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    marginBottom: 20,
+    alignItems: "center",
+    shadowColor: "#d6336c",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
   },
 });
