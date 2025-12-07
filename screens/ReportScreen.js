@@ -185,7 +185,7 @@ export default function ReportScreen() {
               </View>
             </View>
 
-            {/* ---- LEGEND ---- */}
+            {}
             <View style={styles.legendWrapper}>
               <Text style={styles.legendText}>Less</Text>
               <View style={styles.legendBox} />
