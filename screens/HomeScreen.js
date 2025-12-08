@@ -14,7 +14,7 @@ import { Picker } from "@react-native-picker/picker";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-
+/*Free Syria 08.12🦅💚*/
 export default function HomeScreen() {
   const [selectedTime, setSelectedTime] = useState(1500);
   const [timeLeft, setTimeLeft] = useState(1500);
