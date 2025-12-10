@@ -10,19 +10,43 @@ export default function ReportScreen() {
   const navigation = useNavigation();
   const [sessions, setSessions] = useState([]);
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
+  // 🔄 TÜM ESKİ TÜRKÇE KATEGORİLERİ İNGİLİZCEYE ÇEVİRME
+  const normalizeCategories = (arr) => {
+    return arr.map((s) => {
+      if (s.category === "Ders") s.category = "Study";
+      if (s.category === "Kodlama") s.category = "Coding";
+      if (s.category === "Proje") s.category = "Project";
+      if (s.category === "Kitap") s.category = "Book";
+      return s;
+    });
+  };
 
+  // ---------------- LOAD SESSION DATA ----------------
   const loadSessions = async () => {
     try {
       const data = await AsyncStorage.getItem("sessions");
-      if (data) setSessions(JSON.parse(data));
+
+      if (data) {
+        let parsed = JSON.parse(data);
+
+        // TÜM ESKİ VERİLERİ DÜZELT
+        let fixed = normalizeCategories(parsed);
+
+        setSessions(fixed);
+
+        // DÜZELTİLMİŞ VERİYİ KAYDET
+        await AsyncStorage.setItem("sessions", JSON.stringify(fixed));
+      }
     } catch (err) {
       console.log("Load error:", err);
     }
   };
 
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  // ---------------- CLEAR ALL DATA ----------------
   const clearAll = () => {
     Alert.alert(
       "Delete All Sessions",
@@ -117,10 +141,7 @@ export default function ReportScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-     <ScrollView
-  style={styles.container}
-  contentContainerStyle={{ paddingBottom: 120 }}
->
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
 
         <Text style={styles.title}>Focus Report</Text>
 
@@ -185,7 +206,7 @@ export default function ReportScreen() {
               </View>
             </View>
 
-            {}
+            {/* LEGEND */}
             <View style={styles.legendWrapper}>
               <Text style={styles.legendText}>Less</Text>
               <View style={styles.legendBox} />
@@ -214,8 +235,7 @@ export default function ReportScreen() {
                   backgroundGradientFrom: "#ffffff",
                   backgroundGradientTo: "#ffffff",
                   decimalPlaces: 0,
-                  color: (opacity = 1) =>
-                    `rgba(214, 51, 108, ${opacity * 0.8})`,
+                  color: (opacity = 1) => `rgba(214, 51, 108, ${opacity * 0.8})`,
                   labelColor: () => "#b34466",
                   propsForBackgroundLines: {
                     stroke: "#f2d3dd",
@@ -238,23 +258,23 @@ export default function ReportScreen() {
             <PieChart
               data={[
                 {
-                  name: "Ders",
-                  population: sessions.filter((s) => s.category === "Ders").length,
+                  name: "Study",
+                  population: sessions.filter((s) => s.category === "Study").length,
                   color: "#d22b4f",
                 },
                 {
-                  name: "Kodlama",
-                  population: sessions.filter((s) => s.category === "Kodlama").length,
+                  name: "Coding",
+                  population: sessions.filter((s) => s.category === "Coding").length,
                   color: "#ff718b",
                 },
                 {
-                  name: "Proje",
-                  population: sessions.filter((s) => s.category === "Proje").length,
+                  name: "Project",
+                  population: sessions.filter((s) => s.category === "Project").length,
                   color: "#ffbbc6",
                 },
                 {
-                  name: "Kitap",
-                  population: sessions.filter((s) => s.category === "Kitap").length,
+                  name: "Book",
+                  population: sessions.filter((s) => s.category === "Book").length,
                   color: "#fce1e8",
                 },
               ]}
@@ -319,14 +339,12 @@ const styles = StyleSheet.create({
   },
   statsText: { fontSize: 16, marginVertical: 4, color: "#8d4f63" },
 
-  // HEATMAP
   heatmapRowWrapper: { flexDirection: "row", marginBottom: 15 },
   dayColumn: { marginRight: 6, justifyContent: "space-between", paddingVertical: 2 },
   dayLabel: { fontSize: 11, color: "#944059", fontWeight: "600", height: 16 },
   heatmapRow: { flexDirection: "row", marginBottom: 2 },
   githubCell: { width: 14, height: 14, borderRadius: 3, marginRight: 2 },
 
-  // PIE / BAR
   legendWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -336,6 +354,7 @@ const styles = StyleSheet.create({
   },
   legendText: { fontSize: 12, color: "#944059", fontWeight: "600", marginHorizontal: 4 },
   legendBox: { width: 14, height: 14, borderRadius: 3, backgroundColor: "#ffe4e8" },
+
   barCard: {
     backgroundColor: "#fff7fa",
     paddingVertical: 12,

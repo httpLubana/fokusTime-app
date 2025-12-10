@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const [selectedTime, setSelectedTime] = useState(1500);
   const [timeLeft, setTimeLeft] = useState(1500);
   const [isRunning, setIsRunning] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("Ders");
+  const [selectedCategory, setSelectedCategory] = useState("Study");
   const [distractions, setDistractions] = useState(0);
 
   const [showSummary, setShowSummary] = useState(false);
@@ -99,14 +99,15 @@ export default function HomeScreen() {
         timeLeft > 0
       ) {
         setTimeout(() => {
-          Alert.alert(
-            "Devam Et?",
-            "Seans duraklatıldı. Devam etmek ister misiniz?",
-            [
-              { text: "Hayır", style: "cancel" },
-              { text: "Evet", onPress: () => setIsRunning(true) }
-            ]
-          );
+         Alert.alert(
+  "Continue?",
+  "The session was paused. Do you want to continue?",
+  [
+    { text: "No", style: "cancel" },
+    { text: "Yes", onPress: () => setIsRunning(true) }
+  ]
+);
+
         }, 300);
       }
     });
@@ -138,7 +139,7 @@ export default function HomeScreen() {
 
       {/* ------- ÜST KART ------- */}
       <View style={styles.topCard}>
-        <Text style={styles.topLabel}>Süre</Text>
+        <Text style={styles.topLabel}>Time</Text>
 
         <View style={styles.adjustRow}>
           <TouchableOpacity style={styles.adjustBtn} onPress={decreaseTime}>
@@ -152,17 +153,18 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.topLabel}>Kategori</Text>
-        <Picker
-          selectedValue={selectedCategory}
-          style={styles.topPicker}
-          onValueChange={(val) => setSelectedCategory(val)}
-        >
-          <Picker.Item label="Ders" value="Ders" />
-          <Picker.Item label="Kodlama" value="Kodlama" />
-          <Picker.Item label="Proje" value="Proje" />
-          <Picker.Item label="Kitap" value="Kitap" />
-        </Picker>
+        <Text style={styles.topLabel}>Category</Text>
+       <Picker
+  selectedValue={selectedCategory}
+  style={styles.topPicker}
+  onValueChange={(val) => setSelectedCategory(val)}
+>
+  <Picker.Item label="Study" value="Study" />
+  <Picker.Item label="Coding" value="Coding" />
+  <Picker.Item label="Project" value="Project" />  {/* ✔ DÜZELDİ */}
+  <Picker.Item label="Book" value="Book" />
+</Picker>
+
       </View>
 
       {/* ------- TIMER CIRCLE ------- */}
@@ -232,8 +234,10 @@ export default function HomeScreen() {
 
       </View>
 
-      <Text style={styles.info}>Kategori: {selectedCategory}</Text>
-      <Text style={styles.info}>Dikkat Dağınıklığı: {distractions}</Text>
+      <Text style={styles.info}>Category: {selectedCategory}</Text>
+     <Text style={styles.info}>Distract: {distractions}</Text>
+
+
 
       {/* ------- SUMMARY MODAL ------- */}
       <Modal visible={showSummary} transparent animationType="slide">
@@ -244,17 +248,17 @@ export default function HomeScreen() {
             {summaryData && (
               <>
                 <Text style={styles.modalText}>
-                  <Text style={styles.bold}>Kategori:</Text> {summaryData.category}
+                  <Text style={styles.bold}>Category:</Text> {summaryData.category}
                 </Text>
 
                 <Text style={styles.modalText}>
-                  <Text style={styles.bold}>Süre:</Text>{" "}
-                  {Math.floor(summaryData.duration / 60)} dk{" "}
-                  {summaryData.duration % 60} sn
+                  <Text style={styles.bold}>Time:</Text>{" "}
+                  {Math.floor(summaryData.duration / 60)} min{" "}
+                  {summaryData.duration % 60} sec
                 </Text>
 
                 <Text style={styles.modalText}>
-                  <Text style={styles.bold}>Dikkat Dağınıklığı:</Text>{" "}
+                  <Text style={styles.bold}>Distractions:</Text>{" "}
                   {summaryData.distractions}
                 </Text>
               </>

@@ -30,7 +30,11 @@ export default function App() {
       >
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Reports" component={ReportScreen} />
-        <Tab.Screen name="AllSessions" component={AllSessionsScreen} />
+        <Tab.Screen
+          name="AllSessions"
+          component={AllSessionsScreen}
+          options={{ tabBarLabel: "All Sessions" }}
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );
