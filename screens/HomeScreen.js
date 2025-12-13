@@ -15,7 +15,8 @@ import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 
-/* Free Syria 08.12🦅💚 */
+/* Geçerli kategoriler */
+const VALID_CATEGORIES = ["Study", "Coding", "Project", "Book"];
 
 export default function HomeScreen() {
   const [selectedTime, setSelectedTime] = useState(1500);
@@ -28,7 +29,6 @@ export default function HomeScreen() {
   const [summaryData, setSummaryData] = useState(null);
 
   const [wasRunning, setWasRunning] = useState(false);
-
   const appState = useRef(AppState.currentState);
 
   const MIN_TIME = 60;
@@ -39,6 +39,13 @@ export default function HomeScreen() {
     const s = sec % 60;
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
+
+  /* ❗ İlk açılışta kategori bozuk mu → düzelt */
+  useEffect(() => {
+    if (!VALID_CATEGORIES.includes(selectedCategory)) {
+      setSelectedCategory("Study");
+    }
+  }, []);
 
   // ---------------- TIMER LOOP ----------------
   useEffect(() => {
@@ -59,9 +66,13 @@ export default function HomeScreen() {
 
   // ---------------- SAVE SESSION ----------------
   const saveSession = async () => {
+    const safeCategory = VALID_CATEGORIES.includes(selectedCategory)
+      ? selectedCategory
+      : "Study";
+
     const session = {
       duration: selectedTime - timeLeft,
-      category: selectedCategory,
+      category: safeCategory,
       distractions,
       date: new Date().toISOString(),
     };
@@ -153,16 +164,18 @@ export default function HomeScreen() {
 
         <Text style={styles.topLabel}>Category</Text>
 
-        {/* ---- DÜZELTİLMİŞ PICKER ---- */}
+        {/* ❗ Final sorunsuz Picker */}
         <Picker
           selectedValue={selectedCategory}
           style={styles.topPicker}
-          onValueChange={(val) => setSelectedCategory(val)}
+          onValueChange={(val) => {
+            if (!VALID_CATEGORIES.includes(val)) return;
+            setSelectedCategory(val);
+          }}
         >
-          <Picker.Item label="Study" value="Study" />
-          <Picker.Item label="Coding" value="Coding" />
-          <Picker.Item label="Project" value="Project" /> {/* ✔ ARTIK DOĞRU */}
-          <Picker.Item label="Book" value="Book" />
+          {VALID_CATEGORIES.map((c) => (
+            <Picker.Item key={c} label={c} value={c} />
+          ))}
         </Picker>
       </View>
 
@@ -240,7 +253,8 @@ export default function HomeScreen() {
             {summaryData && (
               <>
                 <Text style={styles.modalText}>
-                  <Text style={styles.bold}>Category:</Text> {summaryData.category}
+                  <Text style={styles.bold}>Category:</Text>{" "}
+                  {summaryData.category}
                 </Text>
 
                 <Text style={styles.modalText}>
