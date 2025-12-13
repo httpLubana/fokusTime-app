@@ -10,7 +10,7 @@ export default function ReportScreen() {
   const navigation = useNavigation();
   const [sessions, setSessions] = useState([]);
 
-  // 🔄 TÜM ESKİ TÜRKÇE KATEGORİLERİ İNGİLİZCEYE ÇEVİRME
+
   const normalizeCategories = (arr) => {
     return arr.map((s) => {
       if (s.category === "Ders") s.category = "Study";
@@ -29,12 +29,12 @@ export default function ReportScreen() {
       if (data) {
         let parsed = JSON.parse(data);
 
-        // TÜM ESKİ VERİLERİ DÜZELT
+      
         let fixed = normalizeCategories(parsed);
 
         setSessions(fixed);
 
-        // DÜZELTİLMİŞ VERİYİ KAYDET
+   
         await AsyncStorage.setItem("sessions", JSON.stringify(fixed));
       }
     } catch (err) {

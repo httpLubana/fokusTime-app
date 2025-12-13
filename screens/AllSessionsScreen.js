@@ -12,7 +12,7 @@ export default function AllSessionsScreen() {
     if (data) setSessions(JSON.parse(data));
   };
 
-  // Ekran her açıldığında reload
+
   useEffect(() => {
     if (isFocused) {
       load();

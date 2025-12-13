@@ -15,7 +15,7 @@ import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 
-/* Geçerli kategoriler */
+
 const VALID_CATEGORIES = ["Study", "Coding", "Project", "Book"];
 
 export default function HomeScreen() {
@@ -40,7 +40,7 @@ export default function HomeScreen() {
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
-  /* ❗ İlk açılışta kategori bozuk mu → düzelt */
+ 
   useEffect(() => {
     if (!VALID_CATEGORIES.includes(selectedCategory)) {
       setSelectedCategory("Study");
@@ -164,7 +164,7 @@ export default function HomeScreen() {
 
         <Text style={styles.topLabel}>Category</Text>
 
-        {/* ❗ Final sorunsuz Picker */}
+        {/*     Picker */}
         <Picker
           selectedValue={selectedCategory}
           style={styles.topPicker}
