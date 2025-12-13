@@ -7,14 +7,16 @@ import {
   Modal,
   Pressable,
   Alert,
-  TouchableOpacity
+  TouchableOpacity,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-/*Free Syria 08.12🦅💚*/
+
+/* Free Syria 08.12🦅💚 */
+
 export default function HomeScreen() {
   const [selectedTime, setSelectedTime] = useState(1500);
   const [timeLeft, setTimeLeft] = useState(1500);
@@ -25,7 +27,6 @@ export default function HomeScreen() {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
 
-  // **SEANS BAŞLADI MI?**
   const [wasRunning, setWasRunning] = useState(false);
 
   const appState = useRef(AppState.currentState);
@@ -84,13 +85,11 @@ export default function HomeScreen() {
       const prev = appState.current;
       appState.current = next;
 
-      // Arka plana gidince → dikkat dağınıklığı
       if (prev === "active" && next === "background" && isRunning) {
         setDistractions((d) => d + 1);
         setIsRunning(false);
       }
 
-      // Uygulamaya dönünce alert → sadece seans BAŞLAMIŞSA
       if (
         wasRunning &&
         prev !== "active" &&
@@ -99,15 +98,14 @@ export default function HomeScreen() {
         timeLeft > 0
       ) {
         setTimeout(() => {
-         Alert.alert(
-  "Continue?",
-  "The session was paused. Do you want to continue?",
-  [
-    { text: "No", style: "cancel" },
-    { text: "Yes", onPress: () => setIsRunning(true) }
-  ]
-);
-
+          Alert.alert(
+            "Continue?",
+            "The session was paused. Do you want to continue?",
+            [
+              { text: "No", style: "cancel" },
+              { text: "Yes", onPress: () => setIsRunning(true) },
+            ]
+          );
         }, 300);
       }
     });
@@ -154,17 +152,18 @@ export default function HomeScreen() {
         </View>
 
         <Text style={styles.topLabel}>Category</Text>
-       <Picker
-  selectedValue={selectedCategory}
-  style={styles.topPicker}
-  onValueChange={(val) => setSelectedCategory(val)}
->
-  <Picker.Item label="Study" value="Study" />
-  <Picker.Item label="Coding" value="Coding" />
-  <Picker.Item label="Project" value="Project" />  {/* ✔ DÜZELDİ */}
-  <Picker.Item label="Book" value="Book" />
-</Picker>
 
+        {/* ---- DÜZELTİLMİŞ PICKER ---- */}
+        <Picker
+          selectedValue={selectedCategory}
+          style={styles.topPicker}
+          onValueChange={(val) => setSelectedCategory(val)}
+        >
+          <Picker.Item label="Study" value="Study" />
+          <Picker.Item label="Coding" value="Coding" />
+          <Picker.Item label="Project" value="Project" /> {/* ✔ ARTIK DOĞRU */}
+          <Picker.Item label="Book" value="Book" />
+        </Picker>
       </View>
 
       {/* ------- TIMER CIRCLE ------- */}
@@ -182,8 +181,6 @@ export default function HomeScreen() {
 
       {/* ------- BUTONLAR ------- */}
       <View style={styles.iconButtons}>
-
-        {/* RESET */}
         <Pressable
           style={styles.iconBtn}
           onPress={() => {
@@ -196,7 +193,6 @@ export default function HomeScreen() {
           <Ionicons name="refresh" size={32} color="#c92f68" />
         </Pressable>
 
-        {/* START */}
         {!isRunning ? (
           <Pressable
             style={styles.iconBtnCenter}
@@ -220,7 +216,6 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        {/* STOP */}
         <Pressable
           style={styles.iconBtn}
           onPress={() => {
@@ -231,13 +226,10 @@ export default function HomeScreen() {
         >
           <Ionicons name="stop" size={32} color="#c92f68" />
         </Pressable>
-
       </View>
 
       <Text style={styles.info}>Category: {selectedCategory}</Text>
-     <Text style={styles.info}>Distract: {distractions}</Text>
-
-
+      <Text style={styles.info}>Distract: {distractions}</Text>
 
       {/* ------- SUMMARY MODAL ------- */}
       <Modal visible={showSummary} transparent animationType="slide">
