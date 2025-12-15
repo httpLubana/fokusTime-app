@@ -30,7 +30,8 @@ export default function AllSessionsScreen() {
         <Text style={styles.noData}>No session data found.</Text>
       )}
 
-      {sessions.map((s, i) => (
+  {[...sessions].reverse().map((s, i) => (
+
         <View key={i} style={styles.card}>
           <Text style={styles.item}>
             <Text style={styles.bold}>Category:</Text> {s.category}
