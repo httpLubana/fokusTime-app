@@ -30,6 +30,8 @@ export default function HomeScreen() {
 
   const [wasRunning, setWasRunning] = useState(false);
   const appState = useRef(AppState.currentState);
+    const [sessionSaved, setSessionSaved] = useState(false);
+
 
   const MIN_TIME = 60;
   const MAX_TIME = 7200;
@@ -65,7 +67,10 @@ export default function HomeScreen() {
   }, [isRunning, timeLeft]);
 
   // ---------------- SAVE SESSION ----------------
-  const saveSession = async () => {
+ const saveSession = async () => {
+  if (sessionSaved) return;
+  setSessionSaved(true);
+
     const safeCategory = VALID_CATEGORIES.includes(selectedCategory)
       ? selectedCategory
       : "Study";
@@ -201,6 +206,7 @@ export default function HomeScreen() {
             setWasRunning(false);
             setTimeLeft(selectedTime);
             setDistractions(0);
+             setSessionSaved(false);
           }}
         >
           <Ionicons name="refresh" size={32} color="#c92f68" />
@@ -248,7 +254,8 @@ export default function HomeScreen() {
       <Modal visible={showSummary} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Seans Özeti</Text>
+            <Text style={styles.modalTitle}>Session Summary</Text>
+
 
             {summaryData && (
               <>
@@ -278,7 +285,7 @@ export default function HomeScreen() {
                 setDistractions(0);
               }}
             >
-              <Text style={styles.closeButtonText}>Tamam</Text>
+             <Text style={styles.closeButtonText}>OK</Text>
             </Pressable>
           </View>
         </View>
@@ -440,3 +447,5 @@ const styles = StyleSheet.create({
     color: "#c92f68",
   },
 });
+
+
