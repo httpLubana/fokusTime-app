@@ -4,12 +4,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BarChart, PieChart } from "react-native-chart-kit";
 import * as Animatable from "react-native-animatable";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { Dimensions } from "react-native";
+const screenWidth = Dimensions.get("window").width;
 
 export default function ReportScreen() {
   const navigation = useNavigation();
   const [sessions, setSessions] = useState([]);
-
 
   const normalizeCategories = (arr) => {
     return arr.map((s) => {
@@ -21,51 +22,37 @@ export default function ReportScreen() {
     });
   };
 
-  // ---------------- LOAD SESSION DATA ----------------
   const loadSessions = async () => {
     try {
       const data = await AsyncStorage.getItem("sessions");
-
-      if (data) {
-        let parsed = JSON.parse(data);
-
-      
-        let fixed = normalizeCategories(parsed);
-
-        setSessions(fixed);
-
-   
-        await AsyncStorage.setItem("sessions", JSON.stringify(fixed));
+      if (!data) {
+        setSessions([]);
+        return;
       }
+
+      let parsed = JSON.parse(data);
+      parsed = normalizeCategories(parsed);
+
+      // newest → oldest
+      parsed.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      setSessions(parsed);
+
     } catch (err) {
       console.log("Load error:", err);
     }
   };
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
+  // Focus olduğunda her seferinde güncelle
+  useFocusEffect(
+    React.useCallback(() => {
+      loadSessions();
+    }, [])
+  );
 
-  // ---------------- CLEAR ALL DATA ----------------
-  const clearAll = () => {
-    Alert.alert(
-      "Delete All Sessions",
-      "Are you sure you want to delete all stored sessions?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.removeItem("sessions");
-            setSessions([]);
-          },
-        },
-      ]
-    );
-  };
-
-  // ---------------- STATISTICS ----------------
+  // ---------------------------------------------
+  // STATISTICS
+  // ---------------------------------------------
   const today = new Date().toLocaleDateString("tr-TR");
 
   const todaySessions = sessions.filter(
@@ -76,7 +63,9 @@ export default function ReportScreen() {
   const totalAll = sessions.reduce((sum, s) => sum + s.duration, 0);
   const totalDistractions = sessions.reduce((sum, s) => sum + s.distractions, 0);
 
-  // ---------------- LAST 7 DAYS ----------------
+  // ---------------------------------------------
+  // LAST 7 DAYS CHART
+  // ---------------------------------------------
   const getLast7Days = () => {
     const result = [];
 
@@ -105,7 +94,9 @@ export default function ReportScreen() {
 
   const last7Days = getLast7Days();
 
-  // ---------------- HEATMAP ----------------
+  // ---------------------------------------------
+  // HEATMAP (last 28 days)
+  // ---------------------------------------------
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const heatmapGrid = Array(7)
     .fill(null)
@@ -146,7 +137,10 @@ export default function ReportScreen() {
         <Text style={styles.title}>Focus Report</Text>
 
         <View style={styles.clearBtn}>
-          <Button title="Clear All Sessions" color="#d6336c" onPress={clearAll} />
+          <Button title="Clear All Sessions" color="#d6336c" onPress={async () => {
+            await AsyncStorage.removeItem("sessions");
+            setSessions([]);
+          }} />
         </View>
 
         {sessions.length === 0 && (
@@ -174,51 +168,55 @@ export default function ReportScreen() {
                 {totalDistractions}
               </Text>
             </View>
+{/* ---- HEATMAP ---- */}
+<Text style={styles.subtitle}>Last 4 Weeks Activity</Text>
 
-            {/* ---- HEATMAP ---- */}
-            <Text style={styles.subtitle}>Last 4 Weeks Activity</Text>
+<View style={styles.heatmapRowWrapper}>
+  {/* DAYS */}
+  <View style={styles.dayColumn}>
+    {DAYS.map((day, i) => (
+      <Text key={i} style={styles.dayLabel}>
+        {day}
+      </Text>
+    ))}
+  </View>
 
-            <View style={styles.heatmapRowWrapper}>
-              <View style={styles.dayColumn}>
-                {DAYS.map((day, i) => (
-                  <Text key={i} style={styles.dayLabel}>
-                    {day}
-                  </Text>
-                ))}
-              </View>
+  {/* GRID */}
+  <View>
+    {heatmapGrid.map((row, rowIndex) => (
+      <View key={rowIndex} style={styles.heatmapRow}>
+        {row.map((cell, colIndex) => (
+          <Animatable.View
+            key={`${rowIndex}-${colIndex}`}
+            animation="zoomIn"
+            delay={colIndex * 40}
+            style={[
+              styles.githubCell,
+              { backgroundColor: heatColor(cell.total) },
+            ]}
+          />
+        ))}
+      </View>
+    ))}
+  </View>
+</View>
 
-              <View>
-                {heatmapGrid.map((row, rowIndex) => (
-                  <View key={rowIndex} style={styles.heatmapRow}>
-                    {row.map((cell, colIndex) => (
-                      <Animatable.View
-                        key={colIndex}
-                        animation="zoomIn"
-                        delay={colIndex * 50}
-                        style={[
-                          styles.githubCell,
-                          { backgroundColor: heatColor(cell.total) },
-                        ]}
-                      />
-                    ))}
-                  </View>
-                ))}
-              </View>
-            </View>
+{/* ---- LEGEND---- */}
+<View style={styles.legendWrapper}>
+  <Text style={styles.legendText}>Less</Text>
 
-            {/* LEGEND */}
-            <View style={styles.legendWrapper}>
-              <Text style={styles.legendText}>Less</Text>
-              <View style={styles.legendBox} />
-              <View style={[styles.legendBox, { backgroundColor: "#ffb3c6" }]} />
-              <View style={[styles.legendBox, { backgroundColor: "#ff7a9c" }]} />
-              <View style={[styles.legendBox, { backgroundColor: "#ff4d7a" }]} />
-              <View style={[styles.legendBox, { backgroundColor: "#d12356" }]} />
-              <Text style={styles.legendText}>More</Text>
-            </View>
+  <View style={styles.legendBox} />
+  <View style={[styles.legendBox, { backgroundColor: "#ffb3c6" }]} />
+  <View style={[styles.legendBox, { backgroundColor: "#ff7a9c" }]} />
+  <View style={[styles.legendBox, { backgroundColor: "#ff4d7a" }]} />
+  <View style={[styles.legendBox, { backgroundColor: "#d12356" }]} />
+
+  <Text style={styles.legendText}>More</Text>
+</View>
+
 
             {/* ------------ BAR CHART ------------- */}
-            <Text style={styles.subtitle}>Last 7 Days</Text>
+           <Text style={styles.subtitle}>Last 7 Days</Text>
 
             <View style={styles.barCard}>
               <BarChart
@@ -226,8 +224,8 @@ export default function ReportScreen() {
                   labels: last7Days.map((d) => d.label),
                   datasets: [{ data: last7Days.map((d) => d.minutes) }],
                 }}
-                width={300}
-                height={220}
+                width={350}
+                height={260}
                 fromZero={true}
                 yAxisSuffix="m"
                 chartConfig={{
@@ -251,6 +249,7 @@ export default function ReportScreen() {
                 }}
               />
             </View>
+
 
             {/* ------------ PIE CHART ------------- */}
             <Text style={styles.subtitle}>Category Distribution</Text>
@@ -345,16 +344,6 @@ const styles = StyleSheet.create({
   heatmapRow: { flexDirection: "row", marginBottom: 2 },
   githubCell: { width: 14, height: 14, borderRadius: 3, marginRight: 2 },
 
-  legendWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    marginBottom: 18,
-    gap: 4,
-  },
-  legendText: { fontSize: 12, color: "#944059", fontWeight: "600", marginHorizontal: 4 },
-  legendBox: { width: 14, height: 14, borderRadius: 3, backgroundColor: "#ffe4e8" },
-
   barCard: {
     backgroundColor: "#fff7fa",
     paddingVertical: 12,
@@ -368,4 +357,26 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
+  legendWrapper: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginTop: 8,
+  marginBottom: 18,
+  gap: 4,
+},
+
+legendText: {
+  fontSize: 12,
+  color: "#944059",
+  fontWeight: "600",
+  marginHorizontal: 4,
+},
+
+legendBox: {
+  width: 14,
+  height: 14,
+  borderRadius: 3,
+  backgroundColor: "#ffe4e8",
+},
+
 });

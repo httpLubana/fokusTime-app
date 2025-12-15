@@ -15,7 +15,6 @@ import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 
-
 const VALID_CATEGORIES = ["Study", "Coding", "Project", "Book"];
 
 export default function HomeScreen() {
@@ -30,8 +29,6 @@ export default function HomeScreen() {
 
   const [wasRunning, setWasRunning] = useState(false);
   const appState = useRef(AppState.currentState);
-    const [sessionSaved, setSessionSaved] = useState(false);
-
 
   const MIN_TIME = 60;
   const MAX_TIME = 7200;
@@ -42,7 +39,7 @@ export default function HomeScreen() {
     return `${m}:${s < 10 ? "0" + s : s}`;
   };
 
- 
+  // CATEGORY FIX
   useEffect(() => {
     if (!VALID_CATEGORIES.includes(selectedCategory)) {
       setSelectedCategory("Study");
@@ -60,40 +57,35 @@ export default function HomeScreen() {
     if (timeLeft === 0 && isRunning) {
       setIsRunning(false);
       setWasRunning(false);
-      saveSession();
+      openSummary();
     }
 
     return () => clearInterval(interval);
   }, [isRunning, timeLeft]);
 
-  // ---------------- SAVE SESSION ----------------
- const saveSession = async () => {
-  if (sessionSaved) return;
-  setSessionSaved(true);
+  // ---------------------------------------------
+  // SHOW SUMMARY BUT DO NOT SAVE YET
+  // ---------------------------------------------
+ const openSummary = () => {
+  const safeCategory = VALID_CATEGORIES.includes(selectedCategory)
+    ? selectedCategory
+    : "Study";
 
-    const safeCategory = VALID_CATEGORIES.includes(selectedCategory)
-      ? selectedCategory
-      : "Study";
-
-    const session = {
-      duration: selectedTime - timeLeft,
-      category: safeCategory,
-      distractions,
-      date: new Date().toISOString(),
-    };
-
-    setSummaryData(session);
-    setShowSummary(true);
-
-    try {
-      const old = await AsyncStorage.getItem("sessions");
-      const arr = old ? JSON.parse(old) : [];
-      arr.push(session);
-      await AsyncStorage.setItem("sessions", JSON.stringify(arr));
-    } catch (e) {
-      console.log("Save error:", e);
-    }
+  const session = {
+    duration: selectedTime - timeLeft,
+    category: safeCategory,
+    distractions,
+    date: new Date().toISOString(),
   };
+
+  setSummaryData(session);
+  setShowSummary(true);
+
+  // YENİ: seans bitince timer sıfırlansın
+  setTimeLeft(selectedTime);
+  setDistractions(0);
+};
+
 
   // ---------------- APP STATE LISTENER ----------------
   useEffect(() => {
@@ -146,7 +138,6 @@ export default function HomeScreen() {
     }
   };
 
-  // ---------------- UI ----------------
   return (
     <View style={styles.container}>
       <StatusBar hidden />
@@ -169,7 +160,6 @@ export default function HomeScreen() {
 
         <Text style={styles.topLabel}>Category</Text>
 
-        {/*     Picker */}
         <Picker
           selectedValue={selectedCategory}
           style={styles.topPicker}
@@ -197,8 +187,9 @@ export default function HomeScreen() {
         {() => <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>}
       </AnimatedCircularProgress>
 
-      {/* ------- BUTONLAR ------- */}
+      {/* ------- BUTTONS ------- */}
       <View style={styles.iconButtons}>
+        {/* RESET */}
         <Pressable
           style={styles.iconBtn}
           onPress={() => {
@@ -206,12 +197,12 @@ export default function HomeScreen() {
             setWasRunning(false);
             setTimeLeft(selectedTime);
             setDistractions(0);
-             setSessionSaved(false);
           }}
         >
           <Ionicons name="refresh" size={32} color="#c92f68" />
         </Pressable>
 
+        {/* PLAY / PAUSE */}
         {!isRunning ? (
           <Pressable
             style={styles.iconBtnCenter}
@@ -227,20 +218,20 @@ export default function HomeScreen() {
             style={styles.iconBtnCenter}
             onPress={() => {
               setIsRunning(false);
-              saveSession();
-              setWasRunning(false);
+              setWasRunning(true);
             }}
           >
             <Ionicons name="pause" size={38} color="#c92f68" />
           </Pressable>
         )}
 
+        {/* STOP */}
         <Pressable
           style={styles.iconBtn}
           onPress={() => {
             setIsRunning(false);
             setWasRunning(false);
-            saveSession();
+            openSummary();
           }}
         >
           <Ionicons name="stop" size={32} color="#c92f68" />
@@ -255,7 +246,6 @@ export default function HomeScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Session Summary</Text>
-
 
             {summaryData && (
               <>
@@ -277,16 +267,38 @@ export default function HomeScreen() {
               </>
             )}
 
-            <Pressable
-              style={styles.closeButton}
-              onPress={() => {
-                setShowSummary(false);
-                setTimeLeft(selectedTime);
-                setDistractions(0);
-              }}
-            >
-             <Text style={styles.closeButtonText}>OK</Text>
-            </Pressable>
+            {/* --- BUTTONS --- */}
+            <View style={{ flexDirection: "row", gap: 15, marginTop: 20 }}>
+              {/* CANCEL (Don’t Save) */}
+              <Pressable
+                style={[styles.closeButton, { backgroundColor: "#aaa" }]}
+                onPress={() => {
+                  setShowSummary(false);
+                }}
+              >
+                <Text style={styles.closeButtonText}>Don't Save</Text>
+              </Pressable>
+
+              {/* SAVE */}
+              <Pressable
+                style={styles.closeButton}
+                onPress={async () => {
+                  const oldData = await AsyncStorage.getItem("sessions");
+                  let arr = oldData ? JSON.parse(oldData) : [];
+
+                  arr.push(summaryData);
+
+                  await AsyncStorage.setItem(
+                    "sessions",
+                    JSON.stringify(arr)
+                  );
+
+                  setShowSummary(false);
+                }}
+              >
+                <Text style={styles.closeButtonText}>Save</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -447,5 +459,3 @@ const styles = StyleSheet.create({
     color: "#c92f68",
   },
 });
-
-
