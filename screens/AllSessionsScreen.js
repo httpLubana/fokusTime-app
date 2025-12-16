@@ -23,6 +23,9 @@ export default function AllSessionsScreen() {
   useEffect(() => {
     if (isFocused) load();
   }, [isFocused]);
+// minor update
+
+
 
   // -------- DELETE ONE --------
 const deleteSession = async (date) => {
